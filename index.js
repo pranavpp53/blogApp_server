@@ -27,5 +27,5 @@ const port=4000 || process.env.port
 server.use('/uploads',express.static('./uploads'))
 
 server.listen(port,()=>{
-    console.log(`EMS server started at port ${port}`);
+    console.log(`blog app server started at port ${port}`);
 })

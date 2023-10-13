@@ -1,105 +1,160 @@
-const employees = require("../models/emsSchema");
+const { users, posts } = require("../models/Schema");
 
-//logic to register new employees
-
-exports.employeeRegister = async (req, res) => {
-    const file = req.file.filename
-    const { fname, lname, email, phn, mobile, gender, status, location } = req.body
-    if (!fname || !lname || !email || !phn || !mobile || !gender || !status || !location || !file) {
-        res.status(403).json("all inputs are required")
-    }
+exports.signinLogic = async (req, res) => {
     try {
-        const preEmployee = await employees.findOne({ email })
-        if (preEmployee) {
-            res.status(403).json("employee already existing")
-        }
-        else {
-            const newEmployee = new employees({
-                fname, lname, email, phn, mobile, gender, status, profile: file, location
-            })
-            await newEmployee.save()
-            res.status(200).json(newEmployee)
+        const { email, password } = req.body;
+
+        const user = await users.findOne({ email });
+
+        if (!user) {
+            return res.status(200).json({ message: 'User not found' });
         }
 
+        if (password !== user.password) {
+            return res.status(200).json({ message: 'Incorrect Password' });
+        }
+
+        res.status(200).json({ message: 'Sign-in successful', user });
     }
     catch (error) {
-        res.status(401).json(error)
-
+        console.error(error);
+        res.status(500).json({ error: 'Logical Error' });
     }
-
 }
 
-exports.getAllEmployees = async (req, res) => {
 
-    //access query param from req
-    const searchKey = req.query.search
-    const query = {
-        fname: { $regex: searchKey, $options: "i" }     //"i"=case-insensitive
-    }
+exports.newUser = async (req, res) => {
     try {
-        const getAllEmployees = await employees.find(query)
-        res.status(200).json(getAllEmployees)
-    }
-    catch (err) {
-        res.status(401).json(err)
-    }
-}
+        const { username, email, password } = req.body;
 
-exports.getSingleEmployee = async (req, res) => {
-    //get param data
-    const id = req.params.id
-
-    //find user in db
-    try {
-        const preUser = await employees.findOne({ _id: id })
-        res.status(200).json(preUser)
-
-    }
-    catch {
-        res.status(401).json("employee doest eist")
-    }
-
-}
-
-exports.deleteEmployee = async (req, res) => {
-    const id = req.params.id
+        const existingUser = await users.findOne({ email });
 
 
-    try {
-        const removedItem = await employees.findByIdAndDelete({ _id: id })
-        res.status(200).json(removedItem)
-    }
-    catch(err){
-        res.status(401).json(err)
-    }
-
-}
-
-exports.editUser=async(req,res)=>{
-    const {id}=req.params
-    const { fname, lname, email, phn, mobile, gender, status, location,user_profile } = req.body
-
-    const file=req.file?req.file.filename:user_profile
-
-    try{
-        const user=await employees.findOne({_id:id})
-        if(user){
-            user.fname=fname
-            user.lname=lname
-            user.email=email
-            user.phn=phn
-            user.mobile=mobile
-            user.gender=gender
-            user.status=status
-            user.location=location
-            user.profile=file
-
-            await user.save()
-            res.status(200).json(fname)
+        if (existingUser) {
+            return res.status(400).json({ error: 'user already have an account with this email id' });
         }
-    }
-    catch (err){
-        res.status(401).json(err)
 
+        const newUser = new users({ username, email, password });
+
+        await newUser.save();
+
+        res.status(200).json(newUser);
+    }
+    catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Logical Error' });
+    }
+}
+
+
+exports.newPost = async (req, res) => {
+    const file = req.file.filename
+    const { title, content, authorid } = req.body;
+    try {
+        const author = await users.findById(authorid);
+        if (!author) {
+            return res.status(200).json({ error: 'Author not found' });
+        }
+
+        const newPost = new posts({ title, content, author: authorid, image: file });
+
+        await newPost.save();
+
+        res.status(201).json({ message: 'Post created successfully' });
+    }
+    catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Logical Error' });
+    }
+}
+
+
+exports.userPosts = async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const user = await users.findOne({ _id: userId });
+
+        if (!user) {
+            return res.status(404).json({ error: 'user not found' });
+        }
+
+        const userPosts = await posts.find({ author: user._id });
+
+        res.status(200).json(userPosts);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal Server Error', message: error.message });
+    }
+}
+
+exports.SinglePost = async (req, res) => {
+    try {
+        const postId = req.params.id;
+        const post = await posts.findOne({ _id: postId });
+
+        if (!post) {
+            return res.status(404).json({ error: 'Post not found' });
+        }
+
+        res.status(200).json(post);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal Server Error', message: error.message });
+    }
+}
+
+
+
+exports.allPosts = async (req, res) => {
+    try {
+        const postsWithAuthordetails = await posts.find().populate('author');
+
+        res.status(200).json(postsWithAuthordetails);
+    }
+    catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Logical Error' });
+    }
+}
+
+exports.editPost = async (req, res) => {
+    try {
+
+
+        const postId = req.params.id;
+        const { title, content } = req.body;
+
+        const post = await posts.findById(postId);
+
+        if (!post) {
+            return res.status(404).json({ error: 'Post not found' });
+        }
+
+        post.title = title || post.title;
+        post.content = content || post.content;
+
+        await post.save();
+
+        res.status(200).json({"message":"post edited successfully","data":post});
+    }
+    catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Logical Error' });
+    }
+}
+
+
+
+exports.deletePost = async (req, res) => {
+    try {
+        const postId = req.params.id;
+
+        const post = await posts.findByIdAndDelete(postId);
+
+        res.status(200).json({ message: 'Post deleted successfully', post });
+    }
+    catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal Server Error' });
     }
 }

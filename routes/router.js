@@ -1,26 +1,23 @@
 const express=require('express')
-const { employeeRegister, getAllEmployees, getSingleEmployee,deleteEmployee, editUser } = require('../controllers/logic')
+const { newUser, newPost, userPosts, allPosts, editPost, signinLogic, deletePost, SinglePost } = require("../controllers/logic")
 const upload = require('../multerConfig/storageConfig')
 
+const router = new express.Router()
 
-//create an object for router class in express
-const router=new express.Router()
+router.post("/signin",signinLogic)
 
-//route for register new employee
-router.post('/employees/register',upload.single('user_profile'),employeeRegister)
+router.post("/register",newUser)
 
-//get all employees
-router.get('/employees/getEmployees',getAllEmployees)
+router.post("/newpost",upload.single('image_file'),newPost)
 
-//get single employee data
-router.get('/employees/getSingleEmployee/:id',getSingleEmployee)
+router.get("/userposts/:id",userPosts)
 
-//delete employee
-router.delete('/employees/deleteEmp/:id',deleteEmployee)
+router.get("/singlepost/:id",SinglePost)
 
-//edit employee
-router.post('/employees/editEmployee/:id',upload.single('user_profile'),editUser)
+router.get("/getallposts",allPosts)
 
+router.put("/editpost/:id",editPost)
 
+router.delete("/deletepost/:id",deletePost)
 
 module.exports=router
